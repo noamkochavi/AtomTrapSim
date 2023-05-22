@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
+import scipy.integrate
+
 # internal imports
 from laser import PulsingLaser
 from particle import Particle
@@ -13,23 +15,13 @@ from lens import Lens
 
 # code
 v0 = np.array([0.1, 0, 0])
-left_laser = PulsingLaser(direction=RIGHT, k=1e42,
+left_laser = PulsingLaser(direction=RIGHT, k=LASER_K,
                           t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=0)
-right_laser = PulsingLaser(direction=LEFT, k=1e42,
+right_laser = PulsingLaser(direction=LEFT, k=LASER_K,
                            t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=LASER_PULSE_TIME)
 p = Particle(mass=1, excited_energy=left_laser.energy, start_v=v0)
-extra_ps = [Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy()),
-            Particle(mass=1, excited_energy=left_laser.energy, start_v=v0.copy())]
-ph_lens = Lens(shape=(30, 30), pixel_dim=1, z_loc=Z_MAX)
-sim = Sim(particles=[p, *extra_ps], lenses=[ph_lens], lasers=[left_laser, right_laser])
+ph_lens = Lens(shape=(LENS_PIXELS_H, LENS_PIXELS_W), pixel_dim=1, z_loc=Z_MAX)
+sim = Sim(particles=[p], lenses=[ph_lens], lasers=[left_laser, right_laser])
 
 cache = np.zeros((len(sim.particles), CACHE_SIZE, 3), float)
 for sim_image in sim:

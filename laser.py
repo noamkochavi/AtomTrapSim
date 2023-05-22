@@ -1,9 +1,9 @@
 # external imports
-from scipy.constants import hbar, c
+from scipy.constants import hbar, c, pi
 import numpy as np
 
 # internal imports
-from particle import Particle
+from constants import *
 
 
 class PulsingLaser:
@@ -27,6 +27,16 @@ class PulsingLaser:
         self.time_offset = time_offset
         self.active = False
 
+    def _delta(self, t):
+        """
+        Delta function, represents the status of the laser at the given time
+        :param t: given time
+        :return: 1 if on, 0 if off
+        """
+        return int((t >= self.time_offset)
+                   and
+                   ((t - self.time_offset) % (self.t_on + self.t_on) < self.t_on))
+
     @property
     def momentum(self):
         """
@@ -41,21 +51,25 @@ class PulsingLaser:
         """
         return hbar * self.k * c
 
-    def apply(self, particles, time):
+    def apply(self, particles, time, dt):
         """
         Apply external force on the given particle
         :param particles: a list of Particle objects
         :param time: current time frame of the simulation
+        :param dt: time between this run and the previous
         """
-        if time < self.time_offset:
-            self.active = False
-            return
-        if (time - self.time_offset) % (self.t_off + self.t_on) < self.t_on:
-            for p in particles:
-                # TODO: add probabilities
-                p.momentum += self.momentum
-                if p.energy == 0 and p.excited_energy == self.energy:
-                    p.energy = self.energy
-            self.active = True
-            return
-        self.active = False
+        x = np.linspace(time-dt, time, INTEGRATION_RESOLUTION)
+        y = np.vectorize(self._delta)(x)
+        on_time = sum(y) * dt / INTEGRATION_RESOLUTION
+
+        emissions = []
+        for p in particles:
+            p.momentum += self.momentum * on_time
+            # IMPORTANT! assumes dt*(scattering rate) << 1
+            prob_sc = dt * NATURAL_LINEWIDTH * pi  # TODO: ask about pi
+            rand_n = np.random.rand()
+            if rand_n <= prob_sc:
+                em_dir = p.emit()
+                emissions.append((p.coords, em_dir))
+        self.active = bool(self._delta(time))
+        return emissions
