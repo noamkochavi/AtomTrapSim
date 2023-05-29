@@ -7,23 +7,30 @@ from constants import *
 
 
 class Lens:
-    def __init__(self, shape, pixel_dim, z_loc):
+    def __init__(self, image_dim, focus_area, z_loc):
         """
         Create a new lens that records photon emissions
-        :param shape: (x,y) dimensions of the image by number of pixels (2-tuple)
-        :param pixel_dim: real dimensions of square pixel
+        :param image_dim: length and width in pixels of the resulting image
+        :param focus_area: real area represented by the image
         :param z_loc: relative z-axis location of the lens (directed at the xy plane)
         """
-        self.image = np.zeros(shape)
-        self.pixel_dim = pixel_dim
+        self.image = np.zeros(image_dim)
+        self.focus_area = focus_area
         self.z_loc = z_loc
+
+    @property
+    def pix_len(self):
+        """
+        Side length of the area represented by a pixel, in meters
+        """
+        return np.sqrt(self.focus_area) / len(self.image)
 
     @property
     def max_x(self):
         """
         Maximum x-axis location of the lens plane in the simulation
         """
-        return (self.image.shape[0] * self.pixel_dim) / 2
+        return (self.image.shape[0] * self.pix_len) / 2
 
     @property
     def min_x(self):
@@ -37,7 +44,7 @@ class Lens:
         """
         Maximum y-axis location of the lens plane in the simulation
         """
-        return (self.image.shape[1] * self.pixel_dim) / 2
+        return (self.image.shape[1] * self.pix_len) / 2
 
     @property
     def min_y(self):
@@ -58,5 +65,5 @@ class Lens:
             inter_coords = line_zplane_intersect(self.z_loc, source_coords, direction_vector)
             if self.min_x <= inter_coords[0] <= self.max_x and self.min_y <= inter_coords[1] <= self.max_y:
                 # If photon hits lens, record
-                pix_coords = ((source_coords + [self.max_x, self.max_y, 0]) / self.pixel_dim).astype(int)
+                pix_coords = ((source_coords + [self.max_x, self.max_y, 0]) / self.pix_len).astype(int)
                 self.image[pix_coords[1], pix_coords[0]] += 1
