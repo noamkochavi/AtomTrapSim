@@ -16,23 +16,26 @@ from lens import Lens
 # code
 v0 = np.array([1e-3, 0, 0])
 left_laser = PulsingLaser(direction=RIGHT, k=LASER_K,
-                          t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=0)
+                          n_pulses=PULSES_PER_LASER, t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=0)
 right_laser = PulsingLaser(direction=LEFT, k=LASER_K,
-                           t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=LASER_PULSE_TIME)
+                           n_pulses=PULSES_PER_LASER, t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=LASER_PULSE_TIME)
 p = Particle(mass=1, excited_energy=left_laser.energy, start_v=v0)
 ph_lens = Lens(image_dim=LENS_PIXELS_DIM, focus_area=LENS_FOCUS_AREA, z_loc=Z_MAX)
 sim = Sim(dt=TIME_RESOLUTION, particles=[p], lenses=[ph_lens], lasers=[left_laser, right_laser])
 
 for sim_image in sim:
-    plt.grid()
+    plt.grid(zorder=-1)
     plt.xlim([X_MIN, X_MAX])
     plt.ylim([Y_MIN, Y_MAX])
-    plt.xticks(np.arange(X_MIN, X_MAX + 1, 1))
-    plt.yticks(np.arange(Y_MIN, Y_MAX + 1, 1))
+    tick_len = (X_MAX - X_MIN)/X_TICKS
+    tick_arr = np.arange(X_MIN, X_MAX + tick_len, tick_len)
+    plt.xticks(tick_arr)
+    plt.yticks(tick_arr)
 
     for l in sim_image.lasers:
         if l.active:
-            plt.arrow(0, 0, l.direction[0] * 10, l.direction[1] * 10, color="r", width=0.25)
+            x, y = np.meshgrid(tick_arr + tick_len / 2, tick_arr + tick_len / 2)
+            plt.quiver(x, y, l.direction[0], l.direction[1], color="r")
 
     for part in sim_image.particles:
         x, y, z = part.coords

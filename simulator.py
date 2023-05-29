@@ -31,7 +31,7 @@ class Sim:
         return self.next()
 
     def next(self):
-        if len(self.particles) == 0:
+        if len(self.particles) == 0 or len(self.lasers) == 0:
             raise StopIteration()
 
         if len(self.particles) > 1:
@@ -49,10 +49,17 @@ class Sim:
         for p in self.particles:
             p.step(self.dt)
 
-        self.time += self.dt
-
+        # Remove irrelevant particles
         parts_copy = [x for x in self.particles]
         for p in parts_copy:
             if (p.coords < [X_MIN, Y_MIN, Z_MIN]).any() or (p.coords > [X_MAX, Y_MAX, Z_MAX]).any():
                 self.particles.remove(p)
+
+        # Remove irrelevant lasers
+        las_copy = [x for x in self.lasers]
+        for l in las_copy:
+            if self.time >= l.end_time:
+                self.lasers.remove(l)
+
+        self.time += self.dt
         return self
