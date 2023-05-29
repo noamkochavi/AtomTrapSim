@@ -41,7 +41,7 @@ class Sim:
         emissions = []
         for laser in self.lasers:
             emissions = laser.apply(self.particles, self.time, self.dt)
-
+            # TODO: count emission events, how many caught by lens out of those
             for em_src, em_dir in emissions:
                 for lens in self.lenses:
                     lens.record(em_src, em_dir)

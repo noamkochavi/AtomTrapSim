@@ -6,9 +6,11 @@ TIME_RESOLUTION = 5e-9  # sec
 NATURAL_LINEWIDTH = 6.035e6  # Hz
 LASER_PULSE_TIME = 1e-6  # sec
 PULSES_PER_LASER = 40
-LASER_K = 1  # rad # TODO: check value
+LASER_WAVELENGTH = 1.128e-02  # TODO: check value
+LASER_K = 2 * np.pi / LASER_WAVELENGTH  # rad # TODO: check value
+PARTICLE_MASS = 6.64e-26  # kg (potassium-40)
 LENS_PIXELS_DIM = 30  # pix
-LENS_FOCUS_AREA = 1e-2  # m^2
+LENS_FOCUS_AREA = 1e-9  # m^2
 INTEGRATION_RESOLUTION = 10000
 
 X_MIN = -LENS_FOCUS_AREA
