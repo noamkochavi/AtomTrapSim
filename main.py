@@ -49,4 +49,4 @@ for sim_image in sim:
         plt.gcf().canvas.flush_events()
 
 plt.imshow(ph_lens.image, origin="lower")
-plt.show()
+plt.show(block=False)
