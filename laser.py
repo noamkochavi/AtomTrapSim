@@ -75,7 +75,7 @@ class PulsingLaser:
             for p in particles:
                 p.momentum += self.momentum * on_time
                 # IMPORTANT! assumes dt*(scattering rate) << 1
-                prob_sc = dt * NATURAL_LINEWIDTH * pi  # TODO: ask about pi
+                prob_sc = dt * NATURAL_LINEWIDTH * pi
                 rand_n = np.random.rand()
                 if rand_n <= prob_sc:
                     em_dir = p.emit()

@@ -63,7 +63,10 @@ class Lens:
         if np.sign(self.z_loc - source_coords[2]) == np.sign(direction_vector[2]):
             # if photon is emitted in the z-axis direction of the lens (and not the opposite)
             inter_coords = line_zplane_intersect(self.z_loc, source_coords, direction_vector)
-            if self.min_x <= inter_coords[0] <= self.max_x and self.min_y <= inter_coords[1] <= self.max_y:
+            if self.min_x <= inter_coords[0] <= self.max_x and \
+                    self.min_y <= inter_coords[1] <= self.max_y and \
+                    self.min_x <= source_coords[0] <= self.max_x and \
+                    self.min_y <= source_coords[1] <= self.max_y:
                 # If photon hits lens, record
                 pix_coords = ((source_coords + [self.max_x, self.max_y, 0]) / self.pix_len).astype(int)
                 self.image[pix_coords[1], pix_coords[0]] += 1
