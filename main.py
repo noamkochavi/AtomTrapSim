@@ -19,7 +19,7 @@ left_laser = PulsingLaser(direction=RIGHT, k=LASER_K,
                           n_pulses=PULSES_PER_LASER, t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=0)
 right_laser = PulsingLaser(direction=LEFT, k=LASER_K,
                            n_pulses=PULSES_PER_LASER, t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=LASER_PULSE_TIME)
-p = Particle(mass=PARTICLE_MASS, excited_energy=left_laser.energy, start_v=v0)
+p = Particle(mass=PARTICLE_MASS, excited_energy=left_laser.energy, excited_lifetime=EXCITED_LIFETIME, start_v=v0)
 ph_lens = Lens(image_dim=LENS_PIXELS_DIM, focus_area=LENS_FOCUS_SIDE_LENGTH ** 2, z_loc=Z_MAX)
 sim = Sim(dt=TIME_RESOLUTION, particles=[p], lenses=[ph_lens], lasers=[left_laser, right_laser])
 
@@ -47,7 +47,6 @@ for sim_image in sim:
 
         plt.show(block=False)
         plt.gcf().canvas.flush_events()
-    pass
 
 plt.imshow(ph_lens.image, origin="lower")
 plt.show()

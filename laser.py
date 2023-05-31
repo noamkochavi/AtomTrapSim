@@ -69,16 +69,15 @@ class PulsingLaser:
         x = np.linspace(time-dt, time, INTEGRATION_RESOLUTION, endpoint=False)
         y = np.vectorize(self._delta)(x)
         on_time = sum(y) * dt / INTEGRATION_RESOLUTION
+        del x
+        del y
 
-        emissions = []
         if on_time > 0:
             for p in particles:
-                p.momentum += self.momentum * on_time
                 # IMPORTANT! assumes dt*(scattering rate) << 1
                 prob_sc = dt * NATURAL_LINEWIDTH * pi
                 rand_n = np.random.rand()
                 if rand_n <= prob_sc:
-                    em_dir = p.emit()
-                    emissions.append((p.coords, em_dir))
+                    # TODO: randomize time of absorption out of dt?
+                    p.absorb(self.momentum, time)
         self.active = bool(self._delta(time))
-        return emissions

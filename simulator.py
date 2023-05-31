@@ -31,23 +31,31 @@ class Sim:
         return self.next()
 
     def next(self):
+        # Stop when process ends or when there are no particles left
         if len(self.particles) == 0 or len(self.lasers) == 0:
             raise StopIteration()
 
+        # Apply interactions between particles
         if len(self.particles) > 1:
             # TODO: add interactions between particles to simulation
             pass
 
-        emissions = []
+        # Apply particle-laser interactions
         for laser in self.lasers:
-            emissions = laser.apply(self.particles, self.time, self.dt)
-            # TODO: count emission events, how many caught by lens out of those
-            for em_src, em_dir in emissions:
-                for lens in self.lenses:
-                    lens.record(em_src, em_dir)
+            laser.apply(self.particles, self.time, self.dt)
 
+        # Advance particles in the simulation
+        emissions = []
         for p in self.particles:
-            p.step(self.dt)
+            emiss = p.step(self.time, self.dt)
+            if emiss:
+                emissions.append(emiss)
+
+        # Record all emissions
+        # TODO: count emission events, how many caught by lens out of those
+        for em_src, em_dir in emissions:
+            for lens in self.lenses:
+                lens.record(em_src, em_dir)
 
         # Remove irrelevant particles
         parts_copy = [x for x in self.particles]
