@@ -75,10 +75,14 @@ class Particle:
         :param dt: timespan of the step
         """
         prev_v = self.v
-        v_change = 0
-        if self.excited and (time >= self.emit_time):
+        v_change_t = 0
+        emit_time = self.emit_time
+        emiss = None
+        if self.excited and (time >= emit_time):
             emiss_dir = self.emit()
-            v_change = time - self.emit_time
+            v_change_t = dt - (time - emit_time)
+            emiss = (self.coords + prev_v * v_change_t, emiss_dir)
         self.coord_cache = np.roll(self.coord_cache, 1, 0)
         self.coord_cache[0] = self.coords
-        self.coords = self.coords + prev_v * v_change + self.v * (dt - v_change)
+        self.coords = self.coords + prev_v * v_change_t + self.v * (dt - v_change_t)
+        return emiss

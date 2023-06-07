@@ -66,6 +66,7 @@ class PulsingLaser:
         :param time: current time frame of the simulation
         :param dt: time between this run and the previous
         """
+        # TODO: on_time not required anymore
         x = np.linspace(time-dt, time, INTEGRATION_RESOLUTION, endpoint=False)
         y = np.vectorize(self._delta)(x)
         on_time = sum(y) * dt / INTEGRATION_RESOLUTION
@@ -74,10 +75,12 @@ class PulsingLaser:
 
         if on_time > 0:
             for p in particles:
-                # IMPORTANT! assumes dt*(scattering rate) << 1
-                prob_sc = dt * NATURAL_LINEWIDTH * pi
-                rand_n = np.random.rand()
-                if rand_n <= prob_sc:
-                    # TODO: randomize time of absorption out of dt?
-                    p.absorb(self.momentum, time)
+                if not p.excited:
+                    # IMPORTANT! assumes dt*(scattering rate) << 1
+                    prob_sc = dt * NATURAL_LINEWIDTH * pi
+                    rand_n = np.random.rand()
+                    # TODO: chance to absorb after emitting in the same frame
+                    if rand_n <= prob_sc:
+                        # TODO: randomize time of absorption out of dt?
+                        p.absorb(self.momentum, time)
         self.active = bool(self._delta(time))
