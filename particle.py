@@ -28,6 +28,9 @@ class Particle:
         self.excited_lifetime = excited_lifetime
         self.excited = False
         self.excited_time = -1
+        self.trigger_excited = False
+        self.trigger_excited_time = -1
+        self.trigger_excited_momentum = -1
         self.coord_cache = np.zeros((CACHE_SIZE, 3), float)
 
     @property
@@ -47,15 +50,15 @@ class Particle:
             return self.excited_time + self.excited_lifetime
         return -1
 
-    def absorb(self, momentum, time):
+    def trigger_absorb(self, time, momentum):
         """
-        Absorb a photon
-        :param momentum: momentum of the exciting laser
+        Cue to absorb a photon during step
         :param time: time of excitement
+        :param momentum: momentum of the exciting laser
         """
-        self.momentum += momentum
-        self.excited = True
-        self.excited_time = time
+        self.trigger_excited = True
+        self.trigger_excited_time = time
+        self.trigger_excited_momentum = momentum
 
     def emit(self):
         """
@@ -75,14 +78,32 @@ class Particle:
         :param dt: timespan of the step
         """
         prev_v = self.v
-        v_change_t = 0
+        emit_v_change_rel_t = 0
+        absorb_v_change_rel_t = dt
+        absorb_momentum_change = 0
         emit_time = self.emit_time
         emiss = None
+
         if self.excited and (time >= emit_time):
             emiss_dir = self.emit()
-            v_change_t = dt - (time - emit_time)
-            emiss = (self.coords + prev_v * v_change_t, emiss_dir)
+            emit_v_change_rel_t = dt - (time - emit_time)
+            emiss = (self.coords + prev_v * emit_v_change_rel_t, emiss_dir)
+        if self.trigger_excited:
+            absorb_v_change_rel_t = dt - (time - self.trigger_excited_time)
+            absorb_momentum_change = self.trigger_excited_momentum
+            self.excited = True
+            self.excited_time = self.trigger_excited_time
+            self.trigger_excited = False
+            self.trigger_excited_time = -1
+            self.trigger_excited_momentum = -1
+
         self.coord_cache = np.roll(self.coord_cache, 1, 0)
         self.coord_cache[0] = self.coords
-        self.coords = self.coords + prev_v * v_change_t + self.v * (dt - v_change_t)
+
+        # Apply movement before possible absorption
+        self.coords = self.coords + prev_v * emit_v_change_rel_t + self.v * (absorb_v_change_rel_t - emit_v_change_rel_t)
+
+        # Apply movement after possible absorption
+        self.momentum += absorb_momentum_change
+        self.coords = self.coords + self.v * (dt - absorb_v_change_rel_t)
         return emiss

@@ -31,6 +31,8 @@ class Sim:
         return self.next()
 
     def next(self):
+        self.time += self.dt
+
         # Stop when process ends or when there are no particles left
         if len(self.particles) == 0 or len(self.lasers) == 0:
             raise StopIteration()
@@ -69,5 +71,4 @@ class Sim:
             if self.time >= l.end_time:
                 self.lasers.remove(l)
 
-        self.time += self.dt
         return self
