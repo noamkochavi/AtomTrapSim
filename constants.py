@@ -2,6 +2,8 @@
 import numpy as np
 
 # constants
+DEBUG = False
+
 TIME_RESOLUTION = 5e-9  # sec
 NATURAL_LINEWIDTH = 6.035e6  # Hz
 LASER_PULSE_TIME = 1e-6  # sec
