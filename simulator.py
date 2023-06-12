@@ -10,19 +10,22 @@ class Sim:
     Generator object representing the entire simulation.
     Yields coordinates of particles in discrete moments in time
     """
-    def __init__(self, dt, particles, lenses, lasers=None):
+    def __init__(self, dt, particles, lenses, lasers, fast=True):
         """
         Create a new simulation
         :param dt: time between simulation frames
         :param particles: list of Particle objects
         :param lenses: list of Lens objects
         :param lasers: list of objects from laser.py
+        :param fast: True for faster, less precise mode.
+                     Assumes all the time settings for the lasers are divisible by dt
         """
         self.time = 0
         self.dt = dt
         self.particles = particles
         self.lasers = lasers if lasers is not None else []
         self.lenses = lenses
+        self.fast = fast
 
     def __iter__(self):
         return self
@@ -44,7 +47,7 @@ class Sim:
 
         # Apply particle-laser interactions
         for laser in self.lasers:
-            laser.apply(self.particles, self.time, self.dt)
+            laser.apply(self.particles, self.time, self.dt, self.fast)
 
         # Advance particles in the simulation
         emissions = []

@@ -17,7 +17,7 @@ logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO,
 
 # simulation function
 # TODO: Use exact python variables
-def run_sim(idx):
+def run_sim(idx, debug=False):
     logging.info(f"run_sim({idx}): start")
     v0 = np.array([1e-7, 0, 0])
     left_laser = PulsingLaser(direction=RIGHT, k=LASER_K,
@@ -30,7 +30,7 @@ def run_sim(idx):
 
     last_time = sim.time - 1
     for sim_image in sim:
-        if DEBUG and (last_time + 1e-6 < sim.time):
+        if debug and (last_time + 1e-6 < sim.time):
             last_time = sim.time
             plt.grid(zorder=-1)
             plt.xlim([X_MIN, X_MAX])
@@ -60,9 +60,15 @@ def run_sim(idx):
 
 
 # run trials
-n_threads = 10
-threads = [threading.Thread(target=run_sim, args=(i,)) for i in range(n_threads)]
-for t in threads:
-    t.start()
-for t in threads:
-    t.join()
+run_sim(-1, True)
+
+# n_threads = 10
+# n_imgs = 100
+#
+# n_batches = n_imgs // n_threads
+# for b_idx in range(n_batches):
+#     threads = [threading.Thread(target=run_sim, args=(i + b_idx * n_threads,)) for i in range(n_threads)]
+#     for t in threads:
+#         t.start()
+#     for t in threads:
+#         t.join()
