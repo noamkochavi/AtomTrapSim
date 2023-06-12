@@ -59,7 +59,7 @@ class PulsingLaser:
         """
         return hbar * self.k * c
 
-    def apply(self, particles, time, dt, fast):
+    def apply(self, particles, time, dt, fast, rng):
         """
         Apply external force on the given particle
         :param particles: a list of Particle objects
@@ -67,6 +67,7 @@ class PulsingLaser:
         :param dt: time between this run and the previous
         :param fast: True for faster mode. Assumes laser is either completely on or completely of for the entire frame,
                      and skips the integration of the internal _delta function over the time frame
+        :param rng: RNG to use for the random functions
         """
         if fast:
             on_time = self._delta(time-dt) * dt
@@ -91,13 +92,13 @@ class PulsingLaser:
                 if p_on_time > 0:
                     # Check if an absorption occurred probabilistically. IMPORTANT! assumes dt*(scattering rate) << 1
                     prob_sc = p_on_time * NATURAL_LINEWIDTH * pi
-                    rand_n = np.random.rand()
+                    rand_n = rng.random()
                     if rand_n <= prob_sc:
                         if fast:
-                            absorb_t_part = (np.random.rand() * p_on_time + (dt - p_on_time)) / dt
+                            absorb_t_part = (rng.random() * p_on_time + (dt - p_on_time)) / dt
                         else:
                             y_nz = np.nonzero(y)[0]
-                            rand_idx = np.random.randint(len(y_nz))
+                            rand_idx = rng.integers(len(y_nz))
                             absorb_t_part = y_nz[rand_idx] / float(INTEGRATION_RESOLUTION)
                         p.trigger_absorb(time - dt + absorb_t_part * dt, self.momentum)
         if fast:

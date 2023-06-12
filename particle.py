@@ -60,22 +60,23 @@ class Particle:
         self.trigger_excited_time = time
         self.trigger_excited_momentum = momentum
 
-    def emit(self):
+    def emit(self, rng):
         """
         Emit a photon at a random uniform direction
         :return: direction vector of emission
         """
-        emiss_dir = uniform_random_direction()
+        emiss_dir = uniform_random_direction(rng)
         self.momentum -= emiss_dir * self.excited_energy / c
         self.excited = False
         self.excited_time = -1
         return emiss_dir
 
-    def step(self, time, dt):
+    def step(self, time, dt, rng):
         """
         Move the particle according to the current configuration and time `dt`
         :param time: current time of the simulation
         :param dt: timespan of the step
+        :param rng: RNG to use for the random functions
         """
         prev_v = self.v
         emit_v_change_rel_t = 0
@@ -85,7 +86,7 @@ class Particle:
         emiss = None
 
         if self.excited and (time >= emit_time):
-            emiss_dir = self.emit()
+            emiss_dir = self.emit(rng)
             emit_v_change_rel_t = dt - (time - emit_time)
             emiss = (self.coords + prev_v * emit_v_change_rel_t, emiss_dir)
         if self.trigger_excited:

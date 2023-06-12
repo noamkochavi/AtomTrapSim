@@ -1,4 +1,5 @@
 # external imports
+from numpy.random import SeedSequence
 import matplotlib.pyplot as plt
 import threading
 import logging
@@ -17,16 +18,17 @@ logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO,
 
 # simulation function
 # TODO: Use exact python variables
-def run_sim(idx, debug=False):
+def run_sim(idx, seed, debug=False):
     logging.info(f"run_sim({idx}): start")
     v0 = np.array([1e-7, 0, 0])
+
     left_laser = PulsingLaser(direction=RIGHT, k=LASER_K,
                               n_pulses=PULSES_PER_LASER, t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=0)
     right_laser = PulsingLaser(direction=LEFT, k=LASER_K,
                                n_pulses=PULSES_PER_LASER, t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME, time_offset=LASER_PULSE_TIME)
     p = Particle(mass=PARTICLE_MASS, excited_energy=left_laser.energy, excited_lifetime=EXCITED_LIFETIME, start_v=v0)
     ph_lens = Lens(image_dim=LENS_PIXELS_DIM, focus_area=LENS_FOCUS_SIDE_LENGTH ** 2, z_loc=Z_MAX)
-    sim = Sim(dt=TIME_RESOLUTION, particles=[p], lenses=[ph_lens], lasers=[left_laser, right_laser])
+    sim = Sim(dt=TIME_RESOLUTION, particles=[p], lenses=[ph_lens], lasers=[left_laser, right_laser], seed=seed)
 
     last_time = sim.time - 1
     for sim_image in sim:
@@ -60,15 +62,19 @@ def run_sim(idx, debug=False):
 
 
 # run trials
-run_sim(-1, True)
+# run_sim(-1, True)
 
-# n_threads = 10
-# n_imgs = 100
-#
-# n_batches = n_imgs // n_threads
-# for b_idx in range(n_batches):
-#     threads = [threading.Thread(target=run_sim, args=(i + b_idx * n_threads,)) for i in range(n_threads)]
-#     for t in threads:
-#         t.start()
-#     for t in threads:
-#         t.join()
+n_threads = 10
+n_imgs = 100
+n_batches = n_imgs // n_threads
+
+ss = SeedSequence()
+seeds = ss.spawn(n_imgs)
+
+for b_idx in range(n_batches):
+    threads = [threading.Thread(target=run_sim,
+                                args=(i + b_idx * n_threads, seeds[i + b_idx * n_threads])) for i in range(n_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
