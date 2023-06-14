@@ -14,7 +14,7 @@ class Lens:
         :param focus_area: real area represented by the image
         :param z_loc: relative z-axis location of the lens (directed at the xy plane)
         """
-        self.image = np.zeros((image_dim, image_dim))
+        self.image = np.zeros((image_dim, image_dim), dtype="int")
         self.focus_area = focus_area
         self.z_loc = z_loc
 

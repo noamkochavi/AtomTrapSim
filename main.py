@@ -1,7 +1,9 @@
 # external imports
 from numpy.random import SeedSequence
 import matplotlib.pyplot as plt
-import threading
+import multiprocessing
+from PIL import Image
+import pandas as pd
 import logging
 
 
@@ -18,8 +20,10 @@ logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO,
 
 # simulation function
 # TODO: Use exact python variables
-def run_sim(idx, seed, debug=False):
-    logging.info(f"run_sim({idx}): start")
+def run_sim(args, debug=False):
+    idx, seed = args
+    ssk = seed.spawn_key[0] if seed is not None else None
+    logging.info(f"run_sim({idx}): start. seed={ssk}")
     v0 = np.array([1e-7, 0, 0])
 
     left_laser = PulsingLaser(direction=RIGHT, k=LASER_K,
@@ -55,26 +59,29 @@ def run_sim(idx, seed, debug=False):
             plt.show(block=False)
             plt.gcf().canvas.flush_events()
 
-    plt.imshow(ph_lens.image, origin="lower")
-    plt.savefig(f"results\\res_{idx}.png")
+    plt.imshow(ph_lens.image, origin="lower", vmin=0, vmax=IMAGE_COUNT_LIMIT)
+    plt.axis("off")
+    plt.savefig(f"results\\res_{idx}.png", bbox_inches='tight', pad_inches=0)
+
+    df = pd.DataFrame(ph_lens.image)
+    df.to_csv(f"results\\res_{idx}.csv")
 
     logging.info(f"run_sim({idx}): end")
 
+# TODO: Quantum efficiency & Amplification for camera
 
-# run trials
-# run_sim(-1, True)
 
-n_threads = 10
-n_imgs = 100
-n_batches = n_imgs // n_threads
+def main():
+    # run trials
+    # run_sim(-1, True)
+    n_imgs = 1000
 
-ss = SeedSequence()
-seeds = ss.spawn(n_imgs)
+    ss = SeedSequence()
+    seeds = ss.spawn(n_imgs)
+    pool = multiprocessing.Pool()
+    args = zip(range(n_imgs), seeds)
+    pool.map(run_sim, args)
 
-for b_idx in range(n_batches):
-    threads = [threading.Thread(target=run_sim,
-                                args=(i + b_idx * n_threads, seeds[i + b_idx * n_threads])) for i in range(n_threads)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+
+if __name__ == "__main__":
+    main()
