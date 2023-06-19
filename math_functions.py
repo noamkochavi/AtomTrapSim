@@ -14,9 +14,9 @@ def line_zplane_intersect(plane_z, line_origin, line_dir):
     return line_origin + t * line_dir  # line = p0+t*v
 
 
-def uniform_random_direction(rng):
+def uniform_random_direction(rng, dim=3):
     """
     Generate a uniformly random direction vector in 3d space
     """
-    vec = rng.random(3) - 0.5
+    vec = rng.random(dim) - 0.5
     return vec / np.linalg.norm(vec)
