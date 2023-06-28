@@ -12,7 +12,7 @@ import os
 
 
 # internal imports
-from math_functions import uniform_random_direction
+from math_functions import uniform_random_direction, gauss2d_simple
 from laser import PulsingLaser
 from particle import Particle
 from simulator import Sim
@@ -40,7 +40,7 @@ def run_sim(args, debug=False):
     p = [Particle(mass=PARTICLE_MASS,
                   excited_energy=left_laser.energy, excited_lifetime=EXCITED_LIFETIME,
                   start_coords=np.append(uniform_random_direction(rng, dim=2) * rng.random() * 0.5e-6, 0),
-                  start_v=np.append(uniform_random_direction(rng, dim=2) * rng.random() * 1e-7, 0))
+                  start_v=np.append(uniform_random_direction(rng, dim=2) * rng.random() * MAX_V0, 0))
          for i in range(num_part)]
     ph_lens = Lens(image_dim=LENS_PIXELS_DIM,
                    focus_area=LENS_FOCUS_SIDE_LENGTH ** 2,
@@ -119,18 +119,6 @@ def average_results(res_dir):
         plt.savefig(os.path.join(res_dir, f"mean_noa_{n}.png"), bbox_inches='tight', pad_inches=0)
 
 
-def gauss2d(xy, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    x, y = xy
-    xo = float(xo)
-    yo = float(yo)
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
-                                    + c*((y-yo)**2)))
-    return g.ravel()
-
-
 def fit_results(res_dir):
     ps = glob(os.path.join(res_dir, "mean_noa*.csv"))
     for p in ps:
@@ -140,15 +128,10 @@ def fit_results(res_dir):
         x, y = np.meshgrid(x, y)
 
         # noinspection PyTupleAssignmentBalance
-        popt, pcov = opt.curve_fit(gauss2d, (x, y), arr.ravel(),
-                                   p0=(
-                                       np.max(arr),
-                                       LENS_PIXELS_DIM // 2 - 1,
-                                       LENS_PIXELS_DIM // 2 - 1,
-                                       2, 2, 0, 0
-                                      ))
+        popt, pcov = opt.curve_fit(gauss2d_simple, (x, y), arr.ravel(),
+                                   p0=(np.max(arr), LENS_PIXELS_DIM/2, LENS_PIXELS_DIM/2, 10))
 
-        data_fitted = gauss2d((x, y), *popt)
+        data_fitted = gauss2d_simple((x, y), *popt)
 
         # fig, ax = plt.subplots(1, 1)
         # ax.imshow(arr, origin='lower',
@@ -158,20 +141,19 @@ def fit_results(res_dir):
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
         ax.bar3d(x.ravel(), y.ravel(), np.zeros_like(arr.ravel()), 0.5, 0.5, arr.ravel(), alpha=0.3, shade=True)
-        ax.contour(x, y, data_fitted.reshape(LENS_PIXELS_DIM, LENS_PIXELS_DIM), 10, linewidths=3, cmap="coolwarm")
-        ax.text(15, 25, np.max(arr), rf"$\sigma_x = {popt[3]:.3f}$"\
-                    "\n"\
-                    rf"$\sigma_y = {popt[4]:.3f}$"\
+        ax.contour(x, y, data_fitted.reshape(LENS_PIXELS_DIM, LENS_PIXELS_DIM), 20, linewidths=3, cmap="Reds")
+        ax.text(15, 25, np.max(arr), rf"$\sigma = {popt[3]:.3f}$"\
                     "\n"\
                     rf"$A = {popt[0]:.3f}$")
         plt.show()
 
 
 def main():
+    # TODO: why is it suddenly brighter?
     # debug_trial()
-    run_trials(200, range(1, 6))
-    # average_results("results_19jun23_rinit")
-    # fit_results("results_19jun23_rinit")
+    # run_trials(60, range(1, 4))
+    # average_results("results_28jun23_60_only")
+    fit_results("results_28jun23_60_only")
 
 
 if __name__ == "__main__":

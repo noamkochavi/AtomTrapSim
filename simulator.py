@@ -62,6 +62,7 @@ class Sim:
         # Record all emissions
         # TODO: count emission events, how many caught by lens out of those
         for em_src, em_dir in emissions:
+            # TODO: error in capturing?
             for lens in self.lenses:
                 lens.record(em_src, em_dir)
 

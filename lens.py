@@ -67,5 +67,5 @@ class Lens:
                     self.min_x <= source_coords[0] <= self.max_x and \
                     self.min_y <= source_coords[1] <= self.max_y:
                 # If photon hits lens, record
-                pix_coords = ((source_coords + [self.max_x, self.max_y, 0]) / self.pix_len).astype(int)
+                pix_coords = ((source_coords - [self.min_x, self.min_y, 0]) / self.pix_len).astype(int)
                 self.image[pix_coords[1], pix_coords[0]] += 1
