@@ -26,7 +26,7 @@ logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO,
 # simulation function
 # TODO: Use exact python variables
 def run_sim(args, debug=False):
-    idx, num_part, seed = args
+    idx, num_part, seed, loc_data = args
     rng = np.random.default_rng(seed)
     ssk = seed.spawn_key[0] if seed is not None else None
     logging.info(f"run_sim(idx={idx}, n_p={num_part}): start. seed={ssk}")
@@ -37,7 +37,7 @@ def run_sim(args, debug=False):
     right_laser = PulsingLaser(direction=LEFT, k=LASER_K, n_pulses=PULSES_PER_LASER,
                                t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME,
                                time_offset=LASER_PULSE_TIME)
-    p = [Particle(mass=PARTICLE_MASS,
+    p = [Particle(id=i, mass=PARTICLE_MASS,
                   excited_energy=left_laser.energy, excited_lifetime=EXCITED_LIFETIME,
                   start_coords=np.append(uniform_random_direction(rng, dim=2) * rng.random() * 0.5e-6, 0),
                   start_v=np.append(uniform_random_direction(rng, dim=2) * rng.random() * MAX_V0, 0))
@@ -50,29 +50,39 @@ def run_sim(args, debug=False):
               seed=seed)
 
     last_time = sim.time - 1
+    loc_dicts = []
     for sim_image in sim:
-        if debug and (last_time + 1e-6 < sim.time):
+        if last_time + 1e-6 < sim.time:
             last_time = sim.time
-            plt.grid(zorder=-1)
-            plt.xlim([X_MIN, X_MAX])
-            plt.ylim([Y_MIN, Y_MAX])
-            tick_len = (X_MAX - X_MIN)/X_TICKS
-            tick_arr = np.arange(X_MIN, X_MAX + tick_len, tick_len)
-            plt.xticks(tick_arr)
-            plt.yticks(tick_arr)
+            if debug:
+                plt.grid(zorder=-1)
+                plt.xlim([X_MIN, X_MAX])
+                plt.ylim([Y_MIN, Y_MAX])
+                tick_len = (X_MAX - X_MIN)/X_TICKS
+                tick_arr = np.arange(X_MIN, X_MAX + tick_len, tick_len)
+                plt.xticks(tick_arr)
+                plt.yticks(tick_arr)
 
-            for l in sim_image.lasers:
-                if l.active:
-                    x, y = np.meshgrid(tick_arr + tick_len / 2, tick_arr + tick_len / 2)
-                    plt.quiver(x, y, l.direction[0], l.direction[1], color="r")
+                for l in sim_image.lasers:
+                    if l.active:
+                        x, y = np.meshgrid(tick_arr + tick_len / 2, tick_arr + tick_len / 2)
+                        plt.quiver(x, y, l.direction[0], l.direction[1], color="r")
 
-            for part in sim_image.particles:
-                x, y, z = part.coords
-                plt.plot([x], [y], "bo")
-                plt.plot([x] + [xc[0] for xc in part.coord_cache], [y] + [xc[1] for xc in part.coord_cache], "k")
+                for part in sim_image.particles:
+                    x, y, z = part.coords
+                    plt.plot([x], [y], "bo")
+                    plt.plot([x] + [xc[0] for xc in part.coord_cache], [y] + [xc[1] for xc in part.coord_cache], "k")
 
-            plt.show(block=False)
-            plt.gcf().canvas.flush_events()
+                plt.show(block=False)
+                plt.gcf().canvas.flush_events()
+            if loc_data:
+                for part in sim_image.particles:
+                    loc_dicts.append({"t": sim.time, "id": part.id,
+                                      "x": part.coords[0], "y": part.coords[1], "z": part.coords[2],
+                                      "r": np.linalg.norm(part.coords)})
+
+    if loc_data:
+        pd.DataFrame(loc_dicts).to_csv(f"results\\loc_{idx}_noa_{num_part}.csv", index=False)
 
     plt.imshow(ph_lens.image, origin="lower", vmin=0, vmax=IMAGE_COUNT_LIMIT)
     plt.axis("off")
@@ -90,13 +100,13 @@ def debug_trial():
     run_sim((-1, 1, None), True)
 
 
-def run_trials(n_images_per_noa, noas):
+def run_trials(n_images_per_noa, noas, loc_data=False):
     noas = list(noas)
     n_images = n_images_per_noa * len(noas)
     ss = SeedSequence()
     seeds = ss.spawn(n_images)
     pool = multiprocessing.Pool()
-    args = zip(range(n_images), np.sort(noas * n_images_per_noa), seeds)
+    args = zip(range(n_images), np.sort(noas * n_images_per_noa), seeds, [loc_data]*n_images)
     pool.map(run_sim, args)
 
 
@@ -118,6 +128,13 @@ def average_results(res_dir):
         plt.axis("off")
         plt.savefig(os.path.join(res_dir, f"mean_noa_{n}.png"), bbox_inches='tight', pad_inches=0)
 
+
+def average_dists(res_dir):
+    ps = glob(os.path.join(res_dir, "loc*noa*.csv"))
+    df = pd.read_csv(ps[0])[["t", "r"]]
+    for p in ps[1:]:
+        df = pd.concat((df, pd.read_csv(p)[["t", "r"]]))
+    df.groupby(df.t).mean().to_csv(os.path.join(res_dir, "dist_mean.csv"))
 
 def fit_results(res_dir):
     ps = glob(os.path.join(res_dir, "mean_noa*.csv"))
@@ -148,12 +165,41 @@ def fit_results(res_dir):
         plt.show()
 
 
+def analyze_dist_mean(res_dir):
+    df = pd.read_csv(os.path.join(res_dir, "dist_mean.csv"))
+    t = df.t.to_numpy() * 1e6  # mu_s
+    r = df.r.to_numpy() * 1e6  # mu_m
+
+    # yanai_data
+    exp_t = np.array([10,  20,  30,  40,  50, 60,  70,  80])  # mu_s
+    exp_r = np.array([3.2, 4,   6,   7,   8,  9.5, 10,  12])  # mu_m
+    exp_e = np.array([1/4, 1/2, 2/3, 5/6, 1,  1.2, 1.3, 1.5])  # mu_m
+
+    # li_data
+    li_t = np.array([5,   10,  15, 20, 25, 30,   35, 40, 45,  50])  # mu_s
+    li_r = np.array([3.5, 10,  9,  10, 24, 24.5, 40, 33, 38.5, 35.5]) * 6 / 40 # mu_m
+
+    fig = plt.figure(dpi=300)
+    plt.grid()
+    plt.plot(t, r, "k.", label="sim data")
+    plt.plot(exp_t, exp_r, "r.-", label="yanai data (visual)")
+    plt.plot(li_t, li_r, "g.-", label=r"$^6 Li$ data $\times\frac{6}{40}$ (visual)")
+    plt.errorbar(exp_t, exp_r, exp_e, fmt="r+", capsize=10)
+    plt.xlabel(r"t [$\mu s$]")
+    plt.ylabel(r"r [$\mu m$]")
+    plt.legend()
+    # plt.show()
+    plt.savefig(os.path.join(res_dir, "dist_mean.png"))
+
+
 def main():
     # TODO: why is it suddenly brighter?
     # debug_trial()
-    # run_trials(60, range(1, 4))
+    # run_trials(60, range(1, 4), loc_data=True)
     # average_results("results_28jun23_60_only")
-    fit_results("results_28jun23_60_only")
+    # average_dists("results_28jun23_60_locs")
+    # fit_results("results_28jun23_60_only")
+    analyze_dist_mean("results_28jun23_60_locs")
 
 
 if __name__ == "__main__":

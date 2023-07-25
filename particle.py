@@ -12,7 +12,7 @@ class Particle:
     Object representing a moving particle
     """
 
-    def __init__(self, mass, excited_energy, excited_lifetime, start_coords=None, start_v=None):
+    def __init__(self, id, mass, excited_energy, excited_lifetime, start_coords=None, start_v=None):
         """
         Create a new particle
         :param mass: mass of the particle (kg)
@@ -21,6 +21,7 @@ class Particle:
         :param start_coords: coordinates of the particle at the beginning of the simulation
         :param start_v: velocity of the particle at the beginning of the simulation (m/s)
         """
+        self.id = id
         self.mass = mass
         self.coords = start_coords if start_coords is not None else np.zeros(3)
         self.v = start_v if start_v is not None else np.zeros(3)
