@@ -20,29 +20,3 @@ def uniform_random_direction(rng, dim=3):
     """
     vec = rng.random(dim) - 0.5
     return vec / np.linalg.norm(vec)
-
-
-def gauss2d(xy, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    x, y = xy
-    xo = float(xo)
-    yo = float(yo)
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
-                                    + c*((y-yo)**2)))
-    return g.ravel()
-
-
-def gauss2d_simple(xy, amplitude, xo, yo, sigma):
-    x, y = xy
-    g = amplitude*np.exp(-((x-xo)**2+(y-yo)**2)/(2*sigma**2))
-    return g.ravel()
-
-
-def rms(values):
-    return np.sqrt(sum(values**2)/len(values))
-
-
-def rms_stderr(values):
-    return np.sqrt(sum((values-rms(values))**2)/((len(values)-1)*(len(values))))

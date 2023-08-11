@@ -1,6 +1,5 @@
 # external imports
 from scipy.constants import hbar, c, pi
-import numpy as np
 
 # internal imports
 from constants import *

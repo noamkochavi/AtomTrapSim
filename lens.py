@@ -1,6 +1,3 @@
-# external imports
-import numpy as np
-
 # internal imports
 from math_functions import line_zplane_intersect
 from constants import *

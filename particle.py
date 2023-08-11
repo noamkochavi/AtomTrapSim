@@ -1,6 +1,5 @@
 # external imports
 from scipy.constants import c
-import numpy as np
 
 # internal imports
 from math_functions import uniform_random_direction
@@ -15,6 +14,7 @@ class Particle:
     def __init__(self, id, mass, excited_energy, excited_lifetime, start_coords=None, start_v=None):
         """
         Create a new particle
+        :param id: identification of the particle (for data collecting)
         :param mass: mass of the particle (kg)
         :param excited_energy: energy required to excite particle (J)
         :param excited_lifetime: how long the particle stays excited (s)

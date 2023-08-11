@@ -1,18 +1,15 @@
 # external imports
-import numpy as np
 from numpy.random import SeedSequence
 import matplotlib.pyplot as plt
-import scipy.optimize as opt
 import multiprocessing
 from glob import glob
-from PIL import Image
 import pandas as pd
 import logging
 import os
 
 
 # internal imports
-from math_functions import uniform_random_direction, gauss2d_simple, rms, rms_stderr
+from math_functions import uniform_random_direction
 from laser import PulsingLaser
 from particle import Particle
 from simulator import Sim
@@ -129,90 +126,10 @@ def average_results(res_dir):
         plt.savefig(os.path.join(res_dir, f"mean_noa_{n}.png"), bbox_inches='tight', pad_inches=0)
 
 
-def average_dists(res_dir):
-    ps = glob(os.path.join(res_dir, "loc*noa*.csv"))
-    df = pd.read_csv(ps[0])[["t", "r"]]
-    for p in ps[1:]:
-        df = pd.concat((df, pd.read_csv(p)[["t", "r"]]))
-    df.groupby(df.t)["r"].agg(["mean", "std", "sem", rms, rms_stderr]).reset_index().to_csv(os.path.join(res_dir, "dist_mean.csv"))
-
-def fit_results(res_dir):
-    ps = glob(os.path.join(res_dir, "mean_noa*.csv"))
-    for p in ps:
-        arr = pd.read_csv(p, header=None).to_numpy()
-        x = np.arange(LENS_PIXELS_DIM)
-        y = np.arange(LENS_PIXELS_DIM)
-        x, y = np.meshgrid(x, y)
-
-        # noinspection PyTupleAssignmentBalance
-        popt, pcov = opt.curve_fit(gauss2d_simple, (x, y), arr.ravel(),
-                                   p0=(np.max(arr), LENS_PIXELS_DIM/2, LENS_PIXELS_DIM/2, 10))
-
-        data_fitted = gauss2d_simple((x, y), *popt)
-
-        # fig, ax = plt.subplots(1, 1)
-        # ax.imshow(arr, origin='lower',
-        #           extent=(x.min(), x.max(), y.min(), y.max()), vmin=0, vmax=IMAGE_COUNT_LIMIT)
-        # ax.contour(x, y, data_fitted.reshape(LENS_PIXELS_DIM, LENS_PIXELS_DIM), 2, colors='w')
-        # plt.show()
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        ax.bar3d(x.ravel(), y.ravel(), np.zeros_like(arr.ravel()), 0.5, 0.5, arr.ravel(), alpha=0.3, shade=True)
-        ax.contour(x, y, data_fitted.reshape(LENS_PIXELS_DIM, LENS_PIXELS_DIM), 20, linewidths=3, cmap="Reds")
-        ax.text(15, 25, np.max(arr), rf"$\sigma = {popt[3]:.3f}$"\
-                    "\n"\
-                    rf"$A = {popt[0]:.3f}$")
-        plt.show()
-
-
-def analyze_dist_mean(res_dir):
-    df = pd.read_csv(os.path.join(res_dir, "dist_mean.csv"))
-    t = df.t.to_numpy() * 1e6  # mu_s
-    r = df["rms"].to_numpy() * 1e6  # mu_m
-    r_err = df["rms_stderr"].to_numpy() * 1e6 # mu_m
-    r_mean = df["mean"].to_numpy() * 1e6  # mu_m
-    r_mean_err = df["sem"].to_numpy() * 1e6  # mu_m
-    r_std = df["std"].to_numpy() * 1e6  # mu_m
-
-    # yanai_data
-    exp_t = np.array([10,  20,  30,  40,  50, 60,  70,  80])  # mu_s
-    exp_r = np.array([3.2, 4,   6,   7,   8,  9.5, 10,  12])  # mu_m
-    exp_e = np.array([1/4, 1/2, 2/3, 5/6, 1,  1.2, 1.3, 1.5])  # mu_m
-
-    # li_data
-    li_t = np.array([5,   10,  15, 20, 25, 30,   35, 40, 45,  50])  # mu_s
-    li_r = np.array([3.5, 10,  9,  10, 24, 24.5, 40, 33, 38.5, 35.5]) * 6 / 40 # mu_m
-
-    # equation
-    eq_t = np.linspace(0, t[-1], 1000)
-    eq_r = 32.739 * ((eq_t * 1e-6) ** 1.5) * 1e6
-
-    fig = plt.figure(dpi=300)
-    plt.grid()
-    plt.plot(t, r, "k.", label="sim data (RMS)")
-    plt.errorbar(t[::5], r[::5], r_err[::5], fmt="r+", capsize=3, markersize=1, label="sim data (RMS) stderr")
-    plt.plot(t, r_mean, "c.", label="sim data (mean)")
-    plt.errorbar(t[::5], r_mean[::5], r_mean_err[::5], fmt="+", color="orange", capsize=3, markersize=1, label="sim data (mean) stderr")
-    plt.plot(t, r_std, ".", color="pink", label="std")
-    plt.plot(exp_t, exp_r, "b.-", label="yanai data (visual, inc. error)")
-    plt.plot(li_t, li_r, "g.-", label=r"$^6 Li$ data $\times\frac{6}{40}$ (visual)")
-    plt.errorbar(exp_t, exp_r, exp_e, fmt="b.", capsize=5)
-    plt.plot(eq_t, eq_r, color="purple", label="theory")
-    plt.xlabel(r"t [$\mu s$]")
-    plt.ylabel(r"r [$\mu m$]")
-    plt.legend()
-    # plt.show()
-    plt.savefig(os.path.join(res_dir, "dist_mean.png"))
-
-
 def main():
-    # TODO: why is it suddenly brighter?
     debug_trial()
     # run_trials(500, range(3, 6), loc_data=True, destruct_particles=False)
     # average_results("results_05aug23_huge_halfoffset")
-    # average_dists("results_04aug23_many_flippedlasers")
-    # fit_results("results_28jun23_60_only")
-    # analyze_dist_mean("results_04aug23_many_flippedlasers")
 
 
 if __name__ == "__main__":

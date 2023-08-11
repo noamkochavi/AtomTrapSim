@@ -1,7 +1,3 @@
-# external imports
-from datetime import datetime
-import numpy as np
-
 # internal imports
 from constants import *
 
@@ -14,7 +10,6 @@ class Sim:
     def __init__(self, dt, particles, lenses, lasers, terminate_time=None, fast=True, destruct_particles=True, debug=False, seed=None):
         """
         Create a new simulation
-        :param id: identification of the particle (for data collecting)
         :param dt: time between simulation frames
         :param particles: list of Particle objects
         :param lenses: list of Lens objects
@@ -86,9 +81,7 @@ class Sim:
                          f"particle_id={p.id}&source_coords={' '.join([format(n,'.3e') for n in emiss[0]])}&direction={' '.join([format(n,'.3e') for n in emiss[1]])}"]) + "\n")
 
         # Record all emissions
-        # TODO: count emission events, how many caught by lens out of those
         for em_src, em_dir in emissions:
-            # TODO: error in capturing?
             for lens in self.lenses:
                 lens.record(em_src, em_dir)
 
