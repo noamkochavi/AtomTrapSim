@@ -13,6 +13,7 @@ PARTICLE_MASS = 6.64e-26  # kg (potassium-40)
 LENS_PIXELS_DIM = 30  # pix
 LENS_FOCUS_SIDE_LENGTH = 30e-6  # m
 IMAGE_COUNT_LIMIT = 50  # photons per pixel
+MAX_X0 = 0e6  # mu_m
 MAX_V0 = 0  # m/s
 QUANTUM_EFFICIENCY = .85  # %  # TODO: Get exact QE. Andor iXon Ultra 888
 AMPLIFICATION = 950  # TODO: what?
@@ -35,3 +36,8 @@ IN = np.array([0, 0, -1])
 OUT = np.array([0, 0, 1])
 
 CACHE_SIZE = 5
+LOGGING_FILE = "sim_log.csv"
+SIM_END = "SIM_END"
+EMISS_EVENT = "EMISS_EVENT"
+DELETE_PARTICLE = "DELETE_PARTICLE"
+DELETE_LASER = "DELETE_LASER"

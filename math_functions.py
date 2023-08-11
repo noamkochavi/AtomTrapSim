@@ -38,3 +38,11 @@ def gauss2d_simple(xy, amplitude, xo, yo, sigma):
     x, y = xy
     g = amplitude*np.exp(-((x-xo)**2+(y-yo)**2)/(2*sigma**2))
     return g.ravel()
+
+
+def rms(values):
+    return np.sqrt(sum(values**2)/len(values))
+
+
+def rms_stderr(values):
+    return np.sqrt(sum((values-rms(values))**2)/((len(values)-1)*(len(values))))

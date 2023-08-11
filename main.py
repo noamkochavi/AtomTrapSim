@@ -12,7 +12,7 @@ import os
 
 
 # internal imports
-from math_functions import uniform_random_direction, gauss2d_simple
+from math_functions import uniform_random_direction, gauss2d_simple, rms, rms_stderr
 from laser import PulsingLaser
 from particle import Particle
 from simulator import Sim
@@ -26,20 +26,20 @@ logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO,
 # simulation function
 # TODO: Use exact python variables
 def run_sim(args, debug=False):
-    idx, num_part, seed, loc_data = args
+    idx, num_part, seed, loc_data, destruct_particles = args
     rng = np.random.default_rng(seed)
     ssk = seed.spawn_key[0] if seed is not None else None
     logging.info(f"run_sim(idx={idx}, n_p={num_part}): start. seed={ssk}")
 
     left_laser = PulsingLaser(direction=RIGHT, k=LASER_K, n_pulses=PULSES_PER_LASER,
                               t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME,
-                              time_offset=0)
+                              time_offset=-0.5*LASER_PULSE_TIME)
     right_laser = PulsingLaser(direction=LEFT, k=LASER_K, n_pulses=PULSES_PER_LASER,
                                t_on=LASER_PULSE_TIME, t_off=LASER_PULSE_TIME,
-                               time_offset=LASER_PULSE_TIME)
+                               time_offset=0.5*LASER_PULSE_TIME)
     p = [Particle(id=i, mass=PARTICLE_MASS,
                   excited_energy=left_laser.energy, excited_lifetime=EXCITED_LIFETIME,
-                  start_coords=np.append(uniform_random_direction(rng, dim=2) * rng.random() * 0.5e-6, 0),
+                  start_coords=np.append(uniform_random_direction(rng, dim=2) * rng.random() * MAX_X0, 0),
                   start_v=np.append(uniform_random_direction(rng, dim=2) * rng.random() * MAX_V0, 0))
          for i in range(num_part)]
     ph_lens = Lens(image_dim=LENS_PIXELS_DIM,
@@ -47,12 +47,12 @@ def run_sim(args, debug=False):
                    z_loc=Z_MAX)
     sim = Sim(dt=TIME_RESOLUTION,
               particles=p, lenses=[ph_lens], lasers=[left_laser, right_laser],
-              seed=seed)
+              seed=seed, destruct_particles=destruct_particles, debug=debug)
 
     last_time = sim.time - 1
     loc_dicts = []
     for sim_image in sim:
-        if last_time + 1e-6 < sim.time:
+        if last_time + 5e-8 < sim.time:
             last_time = sim.time
             if debug:
                 plt.grid(zorder=-1)
@@ -97,16 +97,16 @@ def run_sim(args, debug=False):
 
 
 def debug_trial():
-    run_sim((-1, 1, None), True)
+    run_sim((-1, 1, None, None, None), True)
 
 
-def run_trials(n_images_per_noa, noas, loc_data=False):
+def run_trials(n_images_per_noa, noas, loc_data=False, destruct_particles=True):
     noas = list(noas)
     n_images = n_images_per_noa * len(noas)
     ss = SeedSequence()
     seeds = ss.spawn(n_images)
     pool = multiprocessing.Pool()
-    args = zip(range(n_images), np.sort(noas * n_images_per_noa), seeds, [loc_data]*n_images)
+    args = zip(range(n_images), np.sort(noas * n_images_per_noa), seeds, [loc_data]*n_images, [destruct_particles] * n_images)
     pool.map(run_sim, args)
 
 
@@ -134,7 +134,7 @@ def average_dists(res_dir):
     df = pd.read_csv(ps[0])[["t", "r"]]
     for p in ps[1:]:
         df = pd.concat((df, pd.read_csv(p)[["t", "r"]]))
-    df.groupby(df.t).mean().to_csv(os.path.join(res_dir, "dist_mean.csv"))
+    df.groupby(df.t)["r"].agg(["mean", "std", "sem", rms, rms_stderr]).reset_index().to_csv(os.path.join(res_dir, "dist_mean.csv"))
 
 def fit_results(res_dir):
     ps = glob(os.path.join(res_dir, "mean_noa*.csv"))
@@ -168,7 +168,11 @@ def fit_results(res_dir):
 def analyze_dist_mean(res_dir):
     df = pd.read_csv(os.path.join(res_dir, "dist_mean.csv"))
     t = df.t.to_numpy() * 1e6  # mu_s
-    r = df.r.to_numpy() * 1e6  # mu_m
+    r = df["rms"].to_numpy() * 1e6  # mu_m
+    r_err = df["rms_stderr"].to_numpy() * 1e6 # mu_m
+    r_mean = df["mean"].to_numpy() * 1e6  # mu_m
+    r_mean_err = df["sem"].to_numpy() * 1e6  # mu_m
+    r_std = df["std"].to_numpy() * 1e6  # mu_m
 
     # yanai_data
     exp_t = np.array([10,  20,  30,  40,  50, 60,  70,  80])  # mu_s
@@ -179,12 +183,21 @@ def analyze_dist_mean(res_dir):
     li_t = np.array([5,   10,  15, 20, 25, 30,   35, 40, 45,  50])  # mu_s
     li_r = np.array([3.5, 10,  9,  10, 24, 24.5, 40, 33, 38.5, 35.5]) * 6 / 40 # mu_m
 
+    # equation
+    eq_t = np.linspace(0, t[-1], 1000)
+    eq_r = 32.739 * ((eq_t * 1e-6) ** 1.5) * 1e6
+
     fig = plt.figure(dpi=300)
     plt.grid()
-    plt.plot(t, r, "k.", label="sim data")
-    plt.plot(exp_t, exp_r, "r.-", label="yanai data (visual)")
+    plt.plot(t, r, "k.", label="sim data (RMS)")
+    plt.errorbar(t[::5], r[::5], r_err[::5], fmt="r+", capsize=3, markersize=1, label="sim data (RMS) stderr")
+    plt.plot(t, r_mean, "c.", label="sim data (mean)")
+    plt.errorbar(t[::5], r_mean[::5], r_mean_err[::5], fmt="+", color="orange", capsize=3, markersize=1, label="sim data (mean) stderr")
+    plt.plot(t, r_std, ".", color="pink", label="std")
+    plt.plot(exp_t, exp_r, "b.-", label="yanai data (visual, inc. error)")
     plt.plot(li_t, li_r, "g.-", label=r"$^6 Li$ data $\times\frac{6}{40}$ (visual)")
-    plt.errorbar(exp_t, exp_r, exp_e, fmt="r+", capsize=10)
+    plt.errorbar(exp_t, exp_r, exp_e, fmt="b.", capsize=5)
+    plt.plot(eq_t, eq_r, color="purple", label="theory")
     plt.xlabel(r"t [$\mu s$]")
     plt.ylabel(r"r [$\mu m$]")
     plt.legend()
@@ -195,11 +208,11 @@ def analyze_dist_mean(res_dir):
 def main():
     # TODO: why is it suddenly brighter?
     # debug_trial()
-    # run_trials(60, range(1, 4), loc_data=True)
-    # average_results("results_28jun23_60_only")
-    # average_dists("results_28jun23_60_locs")
+    # run_trials(500, range(3, 6), loc_data=True, destruct_particles=False)
+    average_results("results_05aug23_huge_halfoffset")
+    # average_dists("results_04aug23_many_flippedlasers")
     # fit_results("results_28jun23_60_only")
-    analyze_dist_mean("results_28jun23_60_locs")
+    # analyze_dist_mean("results_04aug23_many_flippedlasers")
 
 
 if __name__ == "__main__":
