@@ -49,7 +49,7 @@ def run_sim(args, debug=False):
     last_time = sim.time - 1
     loc_dicts = []
     for sim_image in sim:
-        if last_time + 5e-7 < sim.time:
+        if last_time + 1e-6 < sim.time:
             last_time = sim.time
             if debug:
                 plt.grid(zorder=-1)
@@ -90,7 +90,7 @@ def run_sim(args, debug=False):
 
     logging.info(f"run_sim(idx={idx}, n_p={num_part}): end")
 
-# TODO: Quantum efficiency & Amplification for camera
+# TODO: Amplification for camera
 
 
 def debug_trial():

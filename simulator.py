@@ -83,7 +83,7 @@ class Sim:
         # Record all emissions
         for em_src, em_dir in emissions:
             for lens in self.lenses:
-                lens.record(em_src, em_dir)
+                lens.record(em_src, em_dir, self.__rng)
 
         # Remove irrelevant particles
         if self.destruct_particles:

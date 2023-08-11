@@ -50,11 +50,12 @@ class Lens:
         """
         return -self.max_y
 
-    def record(self, source_coords, direction_vector):
+    def record(self, source_coords, direction_vector, rng):
         """
         Record a photon, released from `source_coords` with momentum `momentum_vector`, in the image
         :param source_coords: coordinates from which the photon was emitted
         :param direction_vector: direction vector of the photon emission
+        :param rng: RNG to use for the random functions
         """
         if np.sign(self.z_loc - source_coords[2]) == np.sign(direction_vector[2]):
             # if photon is emitted in the z-axis direction of the lens (and not the opposite)
@@ -64,5 +65,8 @@ class Lens:
                     self.min_x <= source_coords[0] <= self.max_x and \
                     self.min_y <= source_coords[1] <= self.max_y:
                 # If photon hits lens, record
-                pix_coords = ((source_coords - [self.min_x, self.min_y, 0]) / self.pix_len).astype(int)
-                self.image[pix_coords[1], pix_coords[0]] += 1
+                rand_n = rng.random()
+                if rand_n <= QUANTUM_EFFICIENCY:
+                    # Chance for the camera to detect the photon
+                    pix_coords = ((source_coords - [self.min_x, self.min_y, 0]) / self.pix_len).astype(int)
+                    self.image[pix_coords[1], pix_coords[0]] += 1
