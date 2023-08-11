@@ -46,13 +46,13 @@ def run_sim(args, debug=False):
                    focus_area=LENS_FOCUS_SIDE_LENGTH ** 2,
                    z_loc=Z_MAX)
     sim = Sim(dt=TIME_RESOLUTION,
-              particles=p, lenses=[ph_lens], lasers=[left_laser, right_laser],
+              particles=p, lenses=[ph_lens], lasers=[left_laser, right_laser], terminate_time=TERMINATE_TIME,
               seed=seed, destruct_particles=destruct_particles, debug=debug)
 
     last_time = sim.time - 1
     loc_dicts = []
     for sim_image in sim:
-        if last_time + 5e-8 < sim.time:
+        if last_time + 5e-7 < sim.time:
             last_time = sim.time
             if debug:
                 plt.grid(zorder=-1)
@@ -97,7 +97,7 @@ def run_sim(args, debug=False):
 
 
 def debug_trial():
-    run_sim((-1, 1, None, None, None), True)
+    run_sim((-1, 1, None, True, True), True)
 
 
 def run_trials(n_images_per_noa, noas, loc_data=False, destruct_particles=True):
@@ -207,9 +207,9 @@ def analyze_dist_mean(res_dir):
 
 def main():
     # TODO: why is it suddenly brighter?
-    # debug_trial()
+    debug_trial()
     # run_trials(500, range(3, 6), loc_data=True, destruct_particles=False)
-    average_results("results_05aug23_huge_halfoffset")
+    # average_results("results_05aug23_huge_halfoffset")
     # average_dists("results_04aug23_many_flippedlasers")
     # fit_results("results_28jun23_60_only")
     # analyze_dist_mean("results_04aug23_many_flippedlasers")

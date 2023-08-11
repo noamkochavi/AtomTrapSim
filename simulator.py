@@ -11,7 +11,7 @@ class Sim:
     Generator object representing the entire simulation.
     Yields coordinates of particles in discrete moments in time
     """
-    def __init__(self, dt, particles, lenses, lasers, fast=True, destruct_particles=True, debug=False, seed=None):
+    def __init__(self, dt, particles, lenses, lasers, terminate_time=None, fast=True, destruct_particles=True, debug=False, seed=None):
         """
         Create a new simulation
         :param id: identification of the particle (for data collecting)
@@ -19,6 +19,8 @@ class Sim:
         :param particles: list of Particle objects
         :param lenses: list of Lens objects
         :param lasers: list of objects from laser.py
+        :param terminate_time: time at which the simulation is terminated (in seconds).
+                               If None, the simulation terminates at the absence of Particles and/or Lasers
         :param fast: True for faster, less precise mode.
                      Assumes all the time settings for the lasers are divisible by dt
         :param destruct_particles: if True, destructs particles that leave the focus area
@@ -37,6 +39,11 @@ class Sim:
         self.__rng = np.random.default_rng(seed)
         self.__logging_file = None
 
+        if terminate_time is None:
+            self.terminate_time = max([l.end_time for l in self.lasers])
+        else:
+            self.terminate_time = terminate_time
+
         if debug:
             self.__logging_file = open(LOGGING_FILE, "w")
             self.__logging_file.write("sim_time,action,info\n")
@@ -51,7 +58,7 @@ class Sim:
         self.time += self.dt
 
         # Stop when process ends or when there are no particles left
-        if len(self.particles) == 0 or len(self.lasers) == 0:
+        if self.time > self.terminate_time or len(self.particles) == 0 or len(self.lasers) == 0:
             if self.debug:
                 self.__logging_file.write(f",".join([str(self.time),
                                                      SIM_END, ""]) + "\n")
