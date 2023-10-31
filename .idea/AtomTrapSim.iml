@@ -9,6 +9,8 @@
       <excludeFolder url="file://$MODULE_DIR$/results_05aug23_huge_halfoffset" />
       <excludeFolder url="file://$MODULE_DIR$/results_05aug23_many_halfoffset" />
       <excludeFolder url="file://$MODULE_DIR$/results_09aug23_manytimes" />
+      <excludeFolder url="file://$MODULE_DIR$/results_11aug23_wQE" />
+      <excludeFolder url="file://$MODULE_DIR$/results_15aug23_uncertain_x0" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.8 (base)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
