@@ -1,8 +1,10 @@
 # external imports
-from numpy.random import SeedSequence
 from scipy.ndimage import gaussian_filter
+from numpy.random import SeedSequence
 import matplotlib.pyplot as plt
+from scipy import stats
 import multiprocessing
+from enum import Enum
 from glob import glob
 import pandas as pd
 import logging
@@ -19,6 +21,17 @@ from lens import Lens
 
 logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO,
                     datefmt="%H:%M:%S")
+
+
+class AvgMode(Enum):
+    Regular = 0
+    Fuzzed = 1
+    Adjusted = 2
+
+
+class NoiseType(Enum):
+    Constant = 0
+    BetaDist = 1
 
 
 # simulation function
@@ -82,7 +95,7 @@ def run_sim(args, debug=False):
     if loc_data:
         pd.DataFrame(loc_dicts).to_csv(os.path.join("results", dir_name, "loc", f"{idx}_noa_{num_part}.csv"), index=False)
 
-    plt.imshow(ph_lens.image, origin="lower", vmin=0, vmax=IMAGE_COUNT_LIMIT)
+    plt.imshow(ph_lens.image, origin="lower", vmin=0, vmax=OUTPUT_IMAGE_MAX_VAL)
     plt.axis("off")
     plt.savefig(os.path.join("results", dir_name, "res", f"{idx}_noa_{num_part}.png"), bbox_inches='tight', pad_inches=0)
 
@@ -116,27 +129,81 @@ def run_trials(dir_name, n_images_per_noa, noas, loc_data=False, destruct_partic
     pool.map(run_sim, args)
 
 
+def fuzz_result(args):
+    fuzzdir, path, sigma = args
+    filename = os.path.splitext(os.path.basename(path))[0]
+    logging.info(f"fuzz_result({filename}): start")
+
+    df = pd.read_csv(path, header=None)
+    fuzzdata = gaussian_filter(df.to_numpy(dtype="float"), sigma=sigma)
+
+    pd.DataFrame(fuzzdata).to_csv(os.path.join(fuzzdir, filename + ".csv"), index=False, header=False)
+
+    plt.imshow(fuzzdata, origin="lower", vmin=0, vmax=OUTPUT_IMAGE_MAX_VAL)
+    plt.axis("off")
+    plt.savefig(os.path.join(fuzzdir, filename + ".png"), bbox_inches='tight',
+                pad_inches=0)
+    logging.info(f"fuzz_result({filename}): end")
+
+
 def fuzz_results(res_dir, sigma):
     fuzzdir = os.path.join("results", res_dir, "fuzzres")
     os.mkdir(fuzzdir)
 
     ps = glob(os.path.join("results", res_dir, "res", "*noa*.csv"))
-    for p in ps:
-        filename = os.path.splitext(os.path.basename(p))[0]
-
-        df = pd.read_csv(p, header=None)
-        fuzzdata = gaussian_filter(df.to_numpy(dtype="float"), sigma=sigma)
-
-        pd.DataFrame(fuzzdata).to_csv(os.path.join(fuzzdir, filename + ".csv"), index=False, header=False)
-
-        plt.imshow(fuzzdata, origin="lower", vmin=0, vmax=IMAGE_COUNT_LIMIT)
-        plt.axis("off")
-        plt.savefig(os.path.join(fuzzdir, filename + ".png"), bbox_inches='tight',
-                    pad_inches=0)
+    pool = multiprocessing.Pool()
+    args = zip([fuzzdir] * len(ps), ps, [sigma] * len(ps))
+    pool.map(fuzz_result, args)
 
 
-def average_results(res_dir, fuzz=False):
-    prefix = ["", "fuzz"][fuzz]
+def adjust_result(args):
+    basedir, path, factor_params, off, noise = args
+    filename = os.path.splitext(os.path.basename(path))[0]
+    noa = int(filename.split('_')[-1])
+    logging.info(f"adjust_result({filename}): start")
+
+    factor_func = lambda N, k, m, n: k*np.exp(-m*N)+n
+    df = pd.read_csv(path, header=None)
+    adj_data = factor_func(noa, *factor_params) * df.to_numpy(dtype="float") + off + noise
+
+    pd.DataFrame(adj_data).to_csv(os.path.join(basedir, filename + ".csv"), index=False, header=False)
+
+    plt.imshow(adj_data, origin="lower", vmin=0, vmax=ADJ_OUTPUT_MAX_VAL)
+    plt.axis("off")
+    plt.savefig(os.path.join(basedir, filename + ".png"), bbox_inches='tight',
+                pad_inches=0)
+    logging.info(f"adjust_result({filename}): end")
+
+
+def adjust_results(res_dir, factor_params, off, noise_path, noise_type):
+    basedir = os.path.join("results", res_dir, "adjres")
+    os.mkdir(basedir)
+
+    ps = glob(os.path.join("results", res_dir, "fuzzres", "*noa*.csv"))
+
+    if noise_type == NoiseType.Constant:
+        noise = pd.read_csv(noise_path, header=None).to_numpy()
+        noises = [noise] * len(ps)
+    elif noise_type == NoiseType.BetaDist:
+        noise_beta_df = pd.read_csv(noise_path)
+        noises = np.zeros((len(ps), LENS_PIXELS_DIM, LENS_PIXELS_DIM))
+        for i in range(LENS_PIXELS_DIM):
+            for j in range(LENS_PIXELS_DIM):
+                _, _, f_alpha, f_beta, f_loc, f_scale = noise_beta_df[(noise_beta_df['i'] == i) & (noise_beta_df['j'] == j)] \
+                                                        .to_numpy()[0]
+                noises[:, i, j] = stats.beta.rvs(f_alpha, f_beta, loc=f_loc, scale=f_scale, size=len(ps))
+        noises = list(noises)
+    else:
+        raise ValueError("Non-supported noise_type value. Use the NoiseType enum")
+
+    args = zip([basedir] * len(ps), ps, [factor_params] * len(ps),
+               [off] * len(ps), noises)
+    pool = multiprocessing.Pool()
+    pool.map(adjust_result, args)
+
+
+def average_results(res_dir, mode=AvgMode.Regular):
+    prefix = ["", "fuzz", "adj"][mode.value]
     os.mkdir(os.path.join("results", res_dir, prefix + "mean"))
     ps = glob(os.path.join("results", res_dir, prefix + "res", "*noa*.csv"))
     noas = {int(os.path.splitext(os.path.basename(p))[0].split("_")[2]) for p in ps}
@@ -151,7 +218,8 @@ def average_results(res_dir, fuzz=False):
         df = pd.DataFrame(sum_arr)
         df.to_csv(os.path.join("results", res_dir, prefix+"mean", f"noa_{n}.csv"), index=False, header=False)
 
-        plt.imshow(sum_arr, origin="lower", vmin=0, vmax=IMAGE_COUNT_LIMIT)
+        plt.imshow(sum_arr, origin="lower", vmin=0,
+                   vmax=[OUTPUT_IMAGE_MAX_VAL, ADJ_OUTPUT_MAX_VAL][mode == AvgMode.Adjusted])
         plt.axis("off")
         plt.savefig(os.path.join("results", res_dir, prefix+"mean", f"noa_{n}.png"), bbox_inches='tight', pad_inches=0)
 
@@ -165,17 +233,23 @@ def average_results(res_dir, fuzz=False):
     df = pd.DataFrame(sum_arr)
     df.to_csv(os.path.join("results", res_dir, prefix + "mean", f"all.csv"), index=False, header=False)
 
-    plt.imshow(sum_arr, origin="lower", vmin=0, vmax=IMAGE_COUNT_LIMIT)
+    plt.imshow(sum_arr, origin="lower", vmin=0,
+               vmax=[OUTPUT_IMAGE_MAX_VAL, ADJ_OUTPUT_MAX_VAL][mode == AvgMode.Adjusted])
     plt.axis("off")
     plt.savefig(os.path.join("results", res_dir, prefix + "mean", f"all.png"), bbox_inches='tight', pad_inches=0)
 
 
 def main():
     # debug_trial("debug")
-    # run_trials("311010_offcenter", 300, range(1, 5), loc_data=False, destruct_particles=True)
-    # fuzz_results("311010_offcenter", sigma=1)
-    average_results("311010_offcenter")
-    average_results("311010_offcenter", fuzz=True)
+    # run_trials("240102_large", 1670, range(1, 7), loc_data=False, destruct_particles=True)
+    # fuzz_results("240102_large", sigma=1)
+    # average_results("240102_large")
+    # average_results("240102_large", mode=AvgMode.Fuzzed)
+    adjust_results("240102_large",
+                   (46.54, 0.28, 36.74),
+                   178.6,
+                   "noise_beta_dists.csv", NoiseType.BetaDist)
+    average_results("240102_large", mode=AvgMode.Adjusted)
 
 
 if __name__ == "__main__":
